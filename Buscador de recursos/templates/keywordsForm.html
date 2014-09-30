@@ -1,0 +1,58 @@
+<head>
+
+</head>
+<body>
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+<div class="row">
+  <div class="col-lg-6">
+  </div>
+  <div class="col-lg-6">
+  <form id="login_form" action="http://localhost:8888/" method="post">
+      <label class="grey" for="log">Palabras clave a rastrear</label><br />
+      {% for network in networks %}
+              <div class="input-group">
+                <span class="input-group-addon">
+                  <input type="checkbox" name="{{ network }}" id="{{ network }}" onclick="showMe('{{ network }}','{{ network }}box')"></input>
+                </span>
+                <input type="text" class="form-control" name="keywords{{ network }}" id="keywords{{ network }}" placeholder="{{ network }}">
+              </div><!-- /input-group -->
+              <div id="{{ network }}box" style="display:none;">
+                  {% for option in networks[network] %}
+                     <div class="input-group">
+                        <span class="input-group-addon">{{ option }}</span>
+                        <input type="date" class="form-control" name="{{ network }}{{option}}" placeholder="Ex: 2008-05-14">
+                      </div>
+                  {% end %}
+              </div>
+      {% end %}
+      <label>
+      <input type="hidden" name="keywordSetted" value="English">
+      </form>
+      <button type="submit" class="btn btn-default" id="loginbtn" name="login" value="LOGIN">Start tracking!</button>
+  </div><!-- /.col-lg-6 -->
+</div><!-- /.row -->
+<!--
+    <div class="row">
+      <div class="col-lg-12">
+        <div class="input-group">
+          <input type="text" class="form-control" name="keywords" id="keywords">
+          <span class="input-group-btn">
+            <button class="btn btn-default" type="submit" id="loginbtn" name="login" value="LOGIN">Go!</button>
+          </span>
+        </div>
+      </div>
+    </div>  -->
+
+<script>
+
+function showMe(name,box) {
+    var chboxs = document.getElementById(name);
+    var vis = "none";
+    if(chboxs.checked){
+        vis = "block";
+    }
+    document.getElementById(box).style.display = vis;
+
+}
+</script></body>
