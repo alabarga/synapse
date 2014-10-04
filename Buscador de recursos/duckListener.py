@@ -23,7 +23,7 @@ from goose import Goose
 from pyteaser import SummarizeUrl
 import tldextract
 from pymongo import MongoClient
-#client = MongoClient('localhost', 27017)
+client = MongoClient('localhost', 27017)
 
 #####TWITTER KEYS#####
 CONSUMER_KEY = 'ieZUZgZrSJJE0QLBBOsgXg'
@@ -96,7 +96,7 @@ class duckListener():
                 links.insert(0,link)
 
         #api.import.io       
-        url="https://api.import.io/store/data/97e350d1-d55c-4c66-bcc4-5c2bd2eb8765/_query?input/query="+"LinkinPark"+"&_user=7d0326db-696a-436d-8aba-f6c2e1c9e921&_apikey=89Gl8Ce2tiqX949GcKQTE9hCg6NW%2FkN36WpGKEA4knjhoTTRT72%2BitSWPicKFsZ4RmTwvyMbC%2BOrPtxAvy1EGw%3D%3D"
+        url="https://api.import.io/store/data/97e350d1-d55c-4c66-bcc4-5c2bd2eb8765/_query?input/query="+"3DPrinting"+"&_user=7d0326db-696a-436d-8aba-f6c2e1c9e921&_apikey=89Gl8Ce2tiqX949GcKQTE9hCg6NW%2FkN36WpGKEA4knjhoTTRT72%2BitSWPicKFsZ4RmTwvyMbC%2BOrPtxAvy1EGw%3D%3D"
         response=urllib2.urlopen(url)
         res=response.read()
         res=json.loads(res)
@@ -139,6 +139,8 @@ class duckListener():
 
     def updatePages(self,pages):
         ##para cada url:
+        db = client.Synapse
+        resources = db.Resources
         for page in pages:      
             ###Mirar sis es url corta y convertirla
 
@@ -164,10 +166,8 @@ class duckListener():
             print Resource
             print "  "
             print "  "
-            #db = client.Synapse
-            #resources = db.Resources
             ##introducir a la BD
-            #resources.insert(Resource)
+            resources.insert(Resource)
     
     
     def createResource(self,url):
@@ -184,7 +184,7 @@ class duckListener():
         authors,tags=self.get_authsAndTags(url)
         social_network=tldextract.extract(url)
         summaries=SummarizeUrl(url)
-        resource={"url":url,"url_hash":url_hash,"meta_description":a.meta_description,"meta_keywords":a.meta_keywords,"meta_lang":a.meta_lang,"title":a.title,"social_network":social_network,"raw_content":a.raw_doc,"summaries":summaries,"authors":authors,"tags":tags}
+        resource={"url":url,"url_hash":url_hash,"meta_description":a.meta_description,"meta_keywords":a.meta_keywords,"meta_lang":a.meta_lang,"title":a.title,"summaries":summaries,"authors":authors,"tags":tags}
         return resource
 
     def get_authsAndTags(self,url):
