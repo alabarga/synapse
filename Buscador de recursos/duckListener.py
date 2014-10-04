@@ -23,6 +23,14 @@ from goose import Goose
 from pyteaser import SummarizeUrl
 import tldextract
 from pymongo import MongoClient
+from pyslideshare2 import pyslideshare
+import xml.etree.ElementTree as ET
+from random import shuffle
+import sha
+import time
+
+
+
 client = MongoClient('localhost', 27017)
 
 #####TWITTER KEYS#####
@@ -51,11 +59,12 @@ class duckListener():
     #Inicia la actividad de busqueda
     def start(self):
         self.running=1
-        self.getPages()
-        self.updatePages(self.pages)
-        #while self.running==1:
         
-            #self.updatePosts(self.pages)
+        while self.running==1:
+            self.getPages()
+            self.updatePages(self.pages)
+            self.updatePosts(self.pages)
+            self.running=0
             
     #Para el escuchador        
     def stop(self):
@@ -113,6 +122,31 @@ class duckListener():
           print link+" || "+str(get_tweets_for_url(link))+" || "+str(get_saves_for_url(link))
         """
 
+        ###Get slideshows
+        print "Bien3"  
+        api_key = 'lKp4aIF5' # Your api key
+        secret_key = 'x7fmnUa8' # Your secret key
+        print "Bien3"  
+        ts = int(time.time())
+        print "Bien3"  
+        time_hash=sha.new(secret_key + str(ts)).hexdigest() 
+        print "Bien3"   
+        tag="animal"
+        url="https://www.slideshare.net/api/2/get_slideshows_by_tag?tag="+tag+"&limit=10&api_key="+api_key+"&hash="+time_hash+"&ts="+str(ts)
+        response=urllib2.urlopen(url)
+        res=response.read()
+        root = ET.fromstring(res)
+        print "Bien3"  
+        for child in root:
+            try:
+                link=child[5].text
+                if link not in links:
+                    links.insert(0,link)
+            except:
+                pass
+        ###
+        print "Bien3"  
+        shuffle(links)
         self.pages=links[0:10]
 
 
