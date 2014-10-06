@@ -122,22 +122,17 @@ class duckListener():
           print link+" || "+str(get_tweets_for_url(link))+" || "+str(get_saves_for_url(link))
         """
 
-        ###Get slideshows
-        print "Bien3"  
-        api_key = 'lKp4aIF5' # Your api key
-        secret_key = 'x7fmnUa8' # Your secret key
-        print "Bien3"  
-        ts = int(time.time())
-        print "Bien3"  
-        time_hash=sha.new(secret_key + str(ts)).hexdigest() 
-        print "Bien3"   
-        tag="animal"
-        url="https://www.slideshare.net/api/2/get_slideshows_by_tag?tag="+tag+"&limit=10&api_key="+api_key+"&hash="+time_hash+"&ts="+str(ts)
-        response=urllib2.urlopen(url)
-        res=response.read()
-        root = ET.fromstring(res)
-        print "Bien3"  
-        for child in root:
+        ###Get slideshows && search slideshows
+        l=self.getSlideShow(query="3DPrinting")
+        for child in l:
+            try:
+                link=child[5].text
+                if link not in links:
+                    links.insert(0,link)
+            except:
+                pass
+        l=self.getSlideShow(tag="3DPrinting")
+        for child in l:
             try:
                 link=child[5].text
                 if link not in links:
@@ -145,10 +140,26 @@ class duckListener():
             except:
                 pass
         ###
-        print "Bien3"  
+        
         shuffle(links)
         self.pages=links[0:10]
 
+    def getSlideShow(self,query="",tag=""):
+        api_key = 'lKp4aIF5' # Your api key
+        secret_key = 'x7fmnUa8' # Your secret key
+        ts = int(time.time())
+        time_hash=sha.new(secret_key + str(ts)).hexdigest()   
+        if query!="":
+            url="https://www.slideshare.net/api/2/search_slideshows?q="+query+"&api_key="+api_key+"&hash="+time_hash+"&ts="+str(ts)
+        elif tag!="":
+            url="https://www.slideshare.net/api/2/get_slideshows_by_tag?tag="+tag+"&limit=10&api_key="+api_key+"&hash="+time_hash+"&ts="+str(ts)
+        else: 
+            print "error"
+        response=urllib2.urlopen(url)
+        res=response.read()
+        #print res
+        root = ET.fromstring(res)
+        return root
 
     #Se construye la tarjeta HTML y se envia a la cache
     def updatePosts(self,pages):
