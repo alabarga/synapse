@@ -1,6 +1,5 @@
 import requests # pip install requests
 import json
-import urllib
 import datetime
 import time
 from google_search import GoogleCustomSearch
@@ -9,15 +8,13 @@ import uuid
 import cyclone.escape
 import os.path
 from twisted.python import log
+import tweepy
 from tweepy import Stream
 from tweepy import OAuthHandler
 from tweepy.streaming import StreamListener
-import tweepy
 import urllib2
 import md5
 import hashlib
-
-##NUEVO
 import unfurl
 from goose import Goose
 from pyteaser import SummarizeUrl
@@ -27,10 +24,7 @@ from pyslideshare2 import pyslideshare
 import xml.etree.ElementTree as ET
 from random import shuffle
 import sha
-import time
-
-
-
+##Mongo client
 client = MongoClient('localhost', 27017)
 
 #####TWITTER KEYS#####
@@ -42,10 +36,19 @@ OAUTH_TOKEN_SECRET = 'SJz3nXcyGt2lIKhmPiFg5VlTdHLbrRSPRRgUZ552xfe1e'
 auth = OAuthHandler(CONSUMER_KEY,CONSUMER_SECRET)
 auth.set_access_token(OAUTH_TOKEN,OAUTH_TOKEN_SECRET)
 twittApi = tweepy.API(auth)
+####Google custom search API####
+SEARCH_ENGINE_ID = '009363772985848074726:jxffracj2_8' #os.environ['SEARCH_ENGINE_ID']                          
+API_KEY = 'AIzaSyCE9D6fjIW86IN2uekwJbaS3TDfNbim-lE' #os.environ['GOOGLE_CLOUD_API_KEY']
+googleApi = GoogleCustomSearch(SEARCH_ENGINE_ID, API_KEY)
+####Slideshare API keys####
+ssapi_key = 'lKp4aIF5' # Your api key
+sssecret_key = 'x7fmnUa8' # Your secret key
+##########################
 
 def pp(o):
    return json.dumps(o, indent=4)
 html_script = "<script src=\"//cdn.embedly.com/widgets/platform.js\"></script>"
+
 class duckListener():
 
     def __init__(self,track,cache,limit=10):
@@ -55,11 +58,9 @@ class duckListener():
         self.running = 0
         self.last_id = 0
         self.pages=[]
-        self.crawler=duckduckgo
     #Inicia la actividad de busqueda
     def start(self):
         self.running=1
-        
         while self.running==1:
             self.getPages()
             self.updatePages(self.pages)
@@ -70,6 +71,7 @@ class duckListener():
     def stop(self):
         self.running=0
         return False
+
     #Busca en duckduck con los parametros que se pasen
     def getPages(self):
         links=[]
@@ -78,33 +80,41 @@ class duckListener():
          #  print i.text
         """
         #Google 
-        # https://www.google.com/cse/all
-        # https://www.google.com/cse/setup/basic?cx=009363772985848074726:jxffracj2_8
-        SEARCH_ENGINE_ID = '009363772985848074726:jxffracj2_8' #os.environ['SEARCH_ENGINE_ID']   
+        self.getGoogleSearch("query",links)
+        """
+        #DuckDuckgo
+        self.getDuckGo("query",links)
+        #api.import.io       
+        self.getApiIO("query",links)
+        ###Get slideshows && search slideshows
+        self.getSlideShow(query="3DPrinting",links=links)
+        self.getSlideShow(tag="3DPrinting",links=links)
+        ###Take 10 links randomly
+        shuffle(links)
+        self.pages=links[0:10]
+        """ TABLA DE ENLACEs
+        print "Tabla_______________________________________________"
+        print "Url--------------Tweets que contienen la url-------------Delicious saved"
+        for link in links:
+          print link+" || "+str(get_tweets_for_url(link))+" || "+str(get_saves_for_url(link))
+        """
 
-        # https://console.developers.google.com/project/hontza-edu/apiui/credential                        
-        API_KEY = 'AIzaSyCE9D6fjIW86IN2uekwJbaS3TDfNbim-lE' #os.environ['GOOGLE_CLOUD_API_KEY']
-
-        api = GoogleCustomSearch(SEARCH_ENGINE_ID, API_KEY)
-        
-        for result in api.search('3D printing'):
+    def getGoogleSearch(self,query="",links=[]):
+        for result in googleApi.search('3D printing'):
           link=result['link']
           if link not in links:
               #print link
             links.insert(0,link)
-        #EndGoogle"""
-        print "Bien1"
 
-        #DuckDuckgo
+    def getDuckGo(self,query="",links=[]):
         q=duckduckgo
         r=q.query('3D printing')
-
         for i in r.related:
             link=i.url
             if link not in links:
                 links.insert(0,link)
 
-        #api.import.io       
+    def getApiIO(self,query="",links=[]):
         url="https://api.import.io/store/data/97e350d1-d55c-4c66-bcc4-5c2bd2eb8765/_query?input/query="+"3DPrinting"+"&_user=7d0326db-696a-436d-8aba-f6c2e1c9e921&_apikey=89Gl8Ce2tiqX949GcKQTE9hCg6NW%2FkN36WpGKEA4knjhoTTRT72%2BitSWPicKFsZ4RmTwvyMbC%2BOrPtxAvy1EGw%3D%3D"
         response=urllib2.urlopen(url)
         res=response.read()
@@ -113,60 +123,33 @@ class duckListener():
         for li in res:
           link=li['url']
           if link not in links:
-            links.insert(0,link)
-        print "Bien3"    
-        """ TABLA DE ENLACEs
-        print "Tabla_______________________________________________"
-        print "Url--------------Tweets que contienen la url-------------Delicious saved"
-        for link in links:
-          print link+" || "+str(get_tweets_for_url(link))+" || "+str(get_saves_for_url(link))
-        """
+            links.insert(0,link) 
 
-        ###Get slideshows && search slideshows
-        l=self.getSlideShow(query="3DPrinting")
-        for child in l:
-            try:
-                link=child[5].text
-                if link not in links:
-                    links.insert(0,link)
-            except:
-                pass
-        l=self.getSlideShow(tag="3DPrinting")
-        for child in l:
-            try:
-                link=child[5].text
-                if link not in links:
-                    links.insert(0,link)
-            except:
-                pass
-        ###
-        
-        shuffle(links)
-        self.pages=links[0:10]
-
-    def getSlideShow(self,query="",tag=""):
-        api_key = 'lKp4aIF5' # Your api key
-        secret_key = 'x7fmnUa8' # Your secret key
+    def getSlideShow(self,query="",tag="",links=[]):
         ts = int(time.time())
-        time_hash=sha.new(secret_key + str(ts)).hexdigest()   
+        time_hash=sha.new(sssecret_key + str(ts)).hexdigest()   
         if query!="":
-            url="https://www.slideshare.net/api/2/search_slideshows?q="+query+"&api_key="+api_key+"&hash="+time_hash+"&ts="+str(ts)
+            url="https://www.slideshare.net/api/2/search_slideshows?q="+query+"&api_key="+ssapi_key+"&hash="+time_hash+"&ts="+str(ts)
         elif tag!="":
-            url="https://www.slideshare.net/api/2/get_slideshows_by_tag?tag="+tag+"&limit=10&api_key="+api_key+"&hash="+time_hash+"&ts="+str(ts)
+            url="https://www.slideshare.net/api/2/get_slideshows_by_tag?tag="+tag+"&limit=10&api_key="+ssapi_key+"&hash="+time_hash+"&ts="+str(ts)
         else: 
             print "error"
         response=urllib2.urlopen(url)
         res=response.read()
         #print res
         root = ET.fromstring(res)
-        return root
+        for child in root:
+            try:
+                link=child[5].text
+                if link not in links:
+                    links.insert(0,link)
+            except:
+                pass
 
     #Se construye la tarjeta HTML y se envia a la cache
     def updatePosts(self,pages):
         for ht in pages:
             if self.running==1:
-                #log.msg("============================>")
-                #log.msg("got message from facebook")
                 nodeId=str(uuid.uuid4())
                 htmlcard="<a class=\"embedly-card\" href=\""+ht+"\">Prueba</a>\n"+html_script
                 htmlcard="<div class=\"node\" id=\"m"+nodeId+"\">"+htmlcard+"</div>"
@@ -180,47 +163,35 @@ class duckListener():
                 self.cache.update_cache(node)
                 self.cache.send_updates(node)
                 time.sleep(5)
-    
 
     def updatePages(self,pages):
-        ##para cada url:
         db = client.Synapse
         resources = db.Resources
         for page in pages:      
             ###Mirar sis es url corta y convertirla
-
             #try:
-                #page=unfurl.expand_url(page)           
+             #   page=unfurl.expand_url(page)           
             #except (RuntimeError, TypeError, NameError):
-               # pass
-            print page
+             #   pass
             ###Mirar si ya esta en la BD
-            
-            ##Crear el recursos
-                ##pyteaser
-                ##goose
-                ##quien habla en twiter delicious
-                ##hashtags twitter y etiquetas delicous
-                ##related to
-            try:    
-                Resource=self.createResource(page)
-            except:
-                pass
-            print "  "
-            print "  "
-            print Resource
-            print "  "
-            print "  "
-            ##introducir a la BD
-            resources.insert(Resource)
-    
+            if resources.find({'url':page}).count()==0:
+                print "Trying to insert new URL: "+page
+                try:    
+                    Resource=self.createResource(page)
+                except:
+                    pass
+                ##introducir a la BD
+                try:
+                    resources.insert(Resource)
+                    print "Succesfully inserted"
+                except:
+                    print "Something went wrong you silly boy"
+                    pass
     
     def createResource(self,url):
         g = Goose()
         a= g.extract(url=url)
         #faltan los de comentados
-        #crearid
-        #externalid
         raw_content=a.raw_doc
         #location_name
         #location_lon
@@ -262,8 +233,6 @@ class duckListener():
     def extract_hash_tags(self,s):
         return set(part[1:] for part in s.split() if part.startswith('#'))            
 
-
-
     def get_tweets_for_url(self,url):
        response=urllib2.urlopen("http://urls.api.twitter.com/1/urls/count.json?url="+url)
        res=response.read()
@@ -274,23 +243,5 @@ class duckListener():
        url=hashlib.md5(url).hexdigest()
        response=urllib2.urlopen("http://feeds.delicious.com/v2/json/url/"+url)        
        res=json.loads(response.read())
-       count=0
-       for item in res:
-          count+=1
+       count=len(res)
        return count 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
