@@ -200,7 +200,8 @@ class duckListener():
         authors,tags=self.get_authsAndTags(url)
         social_network=tldextract.extract(url)
         summaries=SummarizeUrl(url)
-        resource={"url":url,"url_hash":url_hash,"meta_description":a.meta_description,"meta_keywords":a.meta_keywords,"meta_lang":a.meta_lang,"title":a.title,"summaries":summaries,"authors":authors,"tags":tags}
+        interest=self.get_interest(url)
+        resource={"url":url,"url_hash":url_hash,"meta_description":a.meta_description,"meta_keywords":a.meta_keywords,"meta_lang":a.meta_lang,"title":a.title,"summaries":summaries,"authors":authors,"tags":tags,"interest":interest}
         return resource
 
     def get_authsAndTags(self,url):
@@ -245,3 +246,8 @@ class duckListener():
        res=json.loads(response.read())
        count=len(res)
        return count 
+
+    def get_interest(self,url):
+        response=urllib2.urlopen('http://free.sharedcount.com/?url='+url+'&apikey=cabec5c5d636b063cbbcf8cbe966fd3c4c7d9152')
+        res=json.loads(response.read())
+        return res
