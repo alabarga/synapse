@@ -128,7 +128,8 @@ if __name__ == "__main__":
     settings = dict(
         template_path=os.path.join(os.path.dirname(__file__), "templates"),
         static_path=os.path.join(os.path.dirname(__file__), "static"),
-        autoescape=None
+        autoescape=None,
+        debug=True
         )
     #Asociacion de rutas
     application = cyclone.web.Application([
