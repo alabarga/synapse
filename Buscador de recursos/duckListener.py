@@ -1,3 +1,4 @@
+#-*- coding: UTF-8 -*-
 import requests # pip install requests
 import json
 import datetime
@@ -24,8 +25,12 @@ from pyslideshare2 import pyslideshare
 import xml.etree.ElementTree as ET
 from random import shuffle
 import sha
+import feedfinder
+import feedparser
+
 ##Mongo client
 client = MongoClient('localhost', 27017)
+db = client.Synapse
 
 #####TWITTER KEYS#####
 CONSUMER_KEY = 'ieZUZgZrSJJE0QLBBOsgXg'
@@ -165,7 +170,6 @@ class duckListener():
                 time.sleep(5)
 
     def updatePages(self,pages):
-        db = client.Synapse
         resources = db.Resources
         for page in pages:      
             ###Mirar sis es url corta y convertirla
@@ -176,7 +180,8 @@ class duckListener():
             ###Mirar si ya esta en la BD
             if resources.find({'url':page}).count()==0:
                 print "Trying to insert new URL: "+page
-                try:    
+                try:
+                    self.getRss(page)    
                     Resource=self.createResource(page)
                 except:
                     pass
@@ -187,7 +192,61 @@ class duckListener():
                 except:
                     print "Something went wrong you silly boy"
                     pass
-    
+
+    def getRss(self,url):
+        f=feedfinder.feed(url)
+        if f!="":
+            print "ESTE ENLACE TIENE RSS: "+f
+            #mirar base datos
+            feeds=db.Feeds
+            print "hola"
+                    
+            a=feeds.find({'rss_url':f,'lasthash':True},{'hash':1})
+            print "hola"
+            count=a.count()
+            print count
+            print "El rss de "+f+" tiene links "
+            feed=feedparser.parse(f)
+            i=0
+            new_lasthash=""
+            for lh in a:
+                    lasthash=lh['hash']
+            for fe in feed.entries:
+                thishash = hashlib.md5(fe.link.encode("utf8") + fe.title.encode("utf8")).hexdigest()
+                if count==0:##no hay ningun feed de esa pagina
+                    print "Lolo3"
+                    if i==0:
+                        i+=1
+                        doc={"lasthash":True,'hash':thishash,'rss_url':f,'url':fe.link,'summary':fe.summary,'title':fe.title,'title_detail':fe.title_detail,'author':{'name':fe.author,'detail':fe.author_detail},'published':fe.published,'e_id':fe.id}
+                    else:
+                        doc={"lasthash":False,'hash':thishash,'rss_url':f,'url':fe.link,'summary':fe.summary,'title':fe.title,'title_detail':fe.title_detail,'author':{'name':fe.author,'detail':fe.author_detail},'published':fe.published,'e_id':fe.id}
+                    feeds.insert(doc)
+                else:#hay algun feed de esa pagina
+                    #if lasthash!=thishash:
+                    print "Lolo4"
+                    if feeds.find({'url':fe.link}).count()==0:
+                        
+                        #nuevo feed
+                        #feeds.find({'rss_url':f}).count()
+                        if i==0:
+                            new_lasthash=thishash 
+                            feeds.update({'rss_url':f,'lasthash':True},{'rss_url':f,'lasthash':False})
+                            doc={"lasthash":True,'hash':thishash,'rss_url':f,'url':fe.link,'summary':fe.summary,'title':fe.title,'title_detail':fe.title_detail,'author':{'name':fe.author,'detail':fe.author_detail},'published':fe.published,'e_id':fe.id}                   
+                            i+=1
+                        else:
+                            doc={"lasthash":False,'hash':thishash,'rss_url':f,'url':fe.link,'summary':fe.summary,'title':fe.title,'title_detail':fe.title_detail,'author':{'name':fe.author,'detail':fe.author_detail},'published':fe.published,'e_id':fe.id}
+                            feeds.insert(doc)
+                    else:
+                        print "Terminado"
+                        break
+            if new_lasthash!="":
+                print "ACTUALUZANDO HASSSSSHHHHH DE "+f
+                
+        else:
+            print "No tiene RSS"
+            
+
+
     def createResource(self,url):
         g = Goose()
         a= g.extract(url=url)
