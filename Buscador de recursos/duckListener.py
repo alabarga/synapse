@@ -69,7 +69,7 @@ class duckListener():
         while self.running==1:
             self.getPages()
             self.updatePages(self.pages)
-            self.updatePosts(self.pages)
+            #self.updatePosts(self.pages)
             self.running=0
             
     #Para el escuchador        
@@ -195,57 +195,69 @@ class duckListener():
 
     def getRss(self,url):
         f=feedfinder.feed(url)
-        if f!="":
+        if f!=None:
             print "ESTE ENLACE TIENE RSS: "+f
             #mirar base datos
             feeds=db.Feeds
-            print "hola"
-                    
             a=feeds.find({'rss_url':f,'lasthash':True},{'hash':1})
-            print "hola"
             count=a.count()
-            print count
-            print "El rss de "+f+" tiene links "
             feed=feedparser.parse(f)
             i=0
+            j=0
             new_lasthash=""
-            for lh in a:
-                    lasthash=lh['hash']
+            
             for fe in feed.entries:
+                j+=1
                 thishash = hashlib.md5(fe.link.encode("utf8") + fe.title.encode("utf8")).hexdigest()
                 if count==0:##no hay ningun feed de esa pagina
-                    print "Lolo3"
+                    doc=self.getAttrib(fe)
                     if i==0:
                         i+=1
-                        doc={"lasthash":True,'hash':thishash,'rss_url':f,'url':fe.link,'summary':fe.summary,'title':fe.title,'title_detail':fe.title_detail,'author':{'name':fe.author,'detail':fe.author_detail},'published':fe.published,'e_id':fe.id}
+                        doc["rss_url"]=f
+                        doc["lasthash"]=True
+                        doc["hash"]=thishash 
                     else:
-                        doc={"lasthash":False,'hash':thishash,'rss_url':f,'url':fe.link,'summary':fe.summary,'title':fe.title,'title_detail':fe.title_detail,'author':{'name':fe.author,'detail':fe.author_detail},'published':fe.published,'e_id':fe.id}
+                        doc["rss_url"]=f
+                        doc["lasthash"]=False
+                        doc["hash"]=thishash 
                     feeds.insert(doc)
                 else:#hay algun feed de esa pagina
+                    for lh in a:
+                        lasthash=lh['hash']
                     #if lasthash!=thishash:
-                    print "Lolo4"
-                    if feeds.find({'url':fe.link}).count()==0:
-                        
+                    if feeds.find({'link ':fe.link}).count()==0:
                         #nuevo feed
                         #feeds.find({'rss_url':f}).count()
+                        doc=self.getAttrib(fe)
                         if i==0:
                             new_lasthash=thishash 
-                            feeds.update({'rss_url':f,'lasthash':True},{'rss_url':f,'lasthash':False})
-                            doc={"lasthash":True,'hash':thishash,'rss_url':f,'url':fe.link,'summary':fe.summary,'title':fe.title,'title_detail':fe.title_detail,'author':{'name':fe.author,'detail':fe.author_detail},'published':fe.published,'e_id':fe.id}                   
+                            feeds.update({'rss_url':f,'lasthash':True},{"$set":{'rss_url':f,'lasthash':False}})
+                            doc["rss_url"]=f
+                            doc["lasthash"]=True
+                            doc["hash"]=thishash 
                             i+=1
+                            feeds.insert(doc)
                         else:
-                            doc={"lasthash":False,'hash':thishash,'rss_url':f,'url':fe.link,'summary':fe.summary,'title':fe.title,'title_detail':fe.title_detail,'author':{'name':fe.author,'detail':fe.author_detail},'published':fe.published,'e_id':fe.id}
+                            doc["rss_url"]=f
+                            doc["lasthash"]=False
+                            doc["hash"]=thishash 
                             feeds.insert(doc)
                     else:
                         print "Terminado"
                         break
-            if new_lasthash!="":
-                print "ACTUALUZANDO HASSSSSHHHHH DE "+f
-                
+                        
         else:
             print "No tiene RSS"
             
-
+    def getAttrib(self,feed):
+        doc={}
+        #doc={"lasthash":True,'hash':thishash,'rss_url':f,'url':fe.link,'summary':fe.summary,'title':fe.title,'title_detail':fe.title_detail,'author':{'name':fe.author,'detail':fe.author_detail},'published':fe.published,'e_id':fe.id}
+        for atr in ['link','summary','title','title_detail','author','author_detail','published','id']:
+            if hasattr(feed,atr):
+                doc[atr]=feed[atr]
+            else:
+                doc[atr]=""
+        return doc
 
     def createResource(self,url):
         g = Goose()
