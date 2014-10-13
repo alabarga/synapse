@@ -88,12 +88,12 @@ class duckListener():
         self.getGoogleSearch("query",links)
         """
         #DuckDuckgo
-        self.getDuckGo("query",links)
+        #self.getDuckGo("query",links)
         #api.import.io       
         self.getApiIO("query",links)
         ###Get slideshows && search slideshows
-        self.getSlideShow(query="3DPrinting",links=links)
-        self.getSlideShow(tag="3DPrinting",links=links)
+        #self.getSlideShow(query="3DPrinting",links=links)
+        #self.getSlideShow(tag="3DPrinting",links=links)
         ###Take 10 links randomly
         shuffle(links)
         self.pages=links[0:10]
@@ -181,7 +181,7 @@ class duckListener():
             if resources.find({'url':page}).count()==0:
                 print "Trying to insert new URL: "+page
                 try:
-                    self.getRss(page)    
+                    #self.getRss(page)    
                     Resource=self.createResource(page)
                 except:
                     pass
@@ -259,7 +259,7 @@ class duckListener():
                 doc[atr]=""
         return doc
 
-    def createResource(self,url):
+    def createResource(self,url,related_to="",leaf=0):
         g = Goose()
         a= g.extract(url=url)
         #faltan los de comentados
@@ -268,14 +268,15 @@ class duckListener():
         #location_lon
         #location_lat 
         url_hash=hashlib.md5(url).hexdigest()      
-        authors,tags=self.get_authsAndTags(url)
+        authors,tags=self.get_authsAndTags(url,leaf)
         social_network=tldextract.extract(url)
         summaries=SummarizeUrl(url)
         interest=self.get_interest(url)
-        resource={"url":url,"url_hash":url_hash,"meta_description":a.meta_description,"meta_keywords":a.meta_keywords,"meta_lang":a.meta_lang,"title":a.title,"summaries":summaries,"authors":authors,"tags":tags,"interest":interest}
+        resource={"related_to":related_to,"url":url,"url_hash":url_hash,"meta_description":a.meta_description,"meta_keywords":a.meta_keywords,"meta_lang":a.meta_lang,"title":a.title,"summaries":summaries,"authors":authors,"tags":tags,"interest":interest}
         return resource
 
-    def get_authsAndTags(self,url):
+    def get_authsAndTags(self,url,leaf):
+        url_link=url
         url=hashlib.md5(url).hexdigest()
         response=urllib2.urlopen("http://feeds.delicious.com/v2/json/url/"+url)        
         delRes=json.loads(response.read())
@@ -288,6 +289,8 @@ class duckListener():
             if author not in authors:
                 authors.insert(0,author)
             for t in a["t"]:
+                if leaf==0:
+                    self.relatedTo(author,url_link,t,"delicious")
                 if t not in tags:
                     tags.insert(0,t)
         #se supone que Twitres es una lsita hacer cosas
@@ -298,12 +301,70 @@ class duckListener():
             #s=el string del tweet
             hts=self.extract_hash_tags(s)
             for ht in hts:
+                if leaf==0:
+                    self.relatedTo(author,url_link,hts,r.id,"twitter")
                 if ht not in tags:
                     tags.insert(0,ht)
         return authors,tags
+
+    def relatedTo(self,user,url,tag,social_network):
+        print "primera de related to"
+        print tag
+        print social_network
+        print user
+        firsturl=url
+        resources = db.Resources
+        tagl=[]
+        tagl.append(tag)
+        relatedToTweet=[]
+        relatedToDel=[]
+        print url
+        if social_network=="twitter":
+            print "Entrado en reltated totwitter para: "+url
+            response=twittApi.user_timeline(user,max_id=mid)
+            for tweet in response:
+                ht=self.extract_hash_tags(tweet.text)
+                intersect=list(set(tagl) & set(ht))
+                if intersect>0:
+                    #relatedToTweet.append(tweet)
+                    ##mirar si en el texto hay enlaces
+                    ##para cada enlace dle texto
+                    print "mirando aver si el twet tiene texto: "+tweet.text
+                    links= self.extract_urls(tweet.text)
+                    for link in links:
+                        Resource=self.createResource(link,firsturl,1)
+                        try:
+                            resources.insert(Resource)
+                            print "Succesfully inserted related resource twitter"
+                        except:
+                            print "Something went wrong you silly boy in related twitter"
+        elif social_network=="delicious":    
+            url="http://feeds.delicious.com/v2/json/"+str(user)+"/"+urllib2.quote(str(tag),'')
+            print "accediendo a"+ url#para cambiar los espacios a %20 
+            response=urllib2.urlopen(url)
+            print "opene2"
+            resp=json.loads(response.read())
+            print "opene2"
+            for res in resp:
+                if firsturl!=str(res["u"]):
+                    print "Link relacionado en delicious: "+str(res["u"])
+                    Resource=self.createResource(str(res["u"]),firsturl,1)
+                    try:
+                        resources.insert(Resource)
+                        print "Succesfully inserted resource delicious"
+                    except:
+                        print "Something went wrong you silly boy in  delicious"
+                        pass
+                else:
+                    print "eran el mimso url"
+        else:
+            print "Este enlace no tiene nada de twitter ni deli"
         
     def extract_hash_tags(self,s):
         return set(part[1:] for part in s.split() if part.startswith('#'))            
+
+    def extract_urls(self,s):
+        return re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', s)
 
     def get_tweets_for_url(self,url):
        response=urllib2.urlopen("http://urls.api.twitter.com/1/urls/count.json?url="+url)
