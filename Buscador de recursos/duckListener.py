@@ -27,6 +27,8 @@ from random import shuffle
 import sha
 import feedfinder
 import feedparser
+import re
+from urlunshort import resolve
 
 ##Mongo client
 client = MongoClient('localhost', 27017)
@@ -96,7 +98,8 @@ class duckListener():
         #self.getSlideShow(tag="3DPrinting",links=links)
         ###Take 10 links randomly
         shuffle(links)
-        self.pages=links[0:10]
+        links=['http://t.co/oJj4lEcWJI']
+        self.pages=links[0:20]
         """ TABLA DE ENLACEs
         print "Tabla_______________________________________________"
         print "Url--------------Tweets que contienen la url-------------Delicious saved"
@@ -120,7 +123,7 @@ class duckListener():
                 links.insert(0,link)
 
     def getApiIO(self,query="",links=[]):
-        url="https://api.import.io/store/data/97e350d1-d55c-4c66-bcc4-5c2bd2eb8765/_query?input/query="+"3DPrinting"+"&_user=7d0326db-696a-436d-8aba-f6c2e1c9e921&_apikey=89Gl8Ce2tiqX949GcKQTE9hCg6NW%2FkN36WpGKEA4knjhoTTRT72%2BitSWPicKFsZ4RmTwvyMbC%2BOrPtxAvy1EGw%3D%3D"
+        url="https://api.import.io/store/data/97e350d1-d55c-4c66-bcc4-5c2bd2eb8765/_query?input/query="+"Linkin%20Park"+"&_user=7d0326db-696a-436d-8aba-f6c2e1c9e921&_apikey=89Gl8Ce2tiqX949GcKQTE9hCg6NW%2FkN36WpGKEA4knjhoTTRT72%2BitSWPicKFsZ4RmTwvyMbC%2BOrPtxAvy1EGw%3D%3D"
         response=urllib2.urlopen(url)
         res=response.read()
         res=json.loads(res)
@@ -184,14 +187,13 @@ class duckListener():
                     #self.getRss(page)    
                     Resource=self.createResource(page)
                 except:
-                    pass
+                    print "erroraco al crear el recurso"
                 ##introducir a la BD
                 try:
                     resources.insert(Resource)
                     print "Succesfully inserted"
                 except:
                     print "Something went wrong you silly boy"
-                    pass
 
     def getRss(self,url):
         f=feedfinder.feed(url)
@@ -260,13 +262,15 @@ class duckListener():
         return doc
 
     def createResource(self,url,related_to="",leaf=0):
+        if resolve(url)!=None:
+             url=resolve(url)
         g = Goose()
         a= g.extract(url=url)
         #faltan los de comentados
         raw_content=a.raw_doc
         #location_name
         #location_lon
-        #location_lat 
+        #location_lat
         url_hash=hashlib.md5(url).hexdigest()      
         authors,tags=self.get_authsAndTags(url,leaf)
         social_network=tldextract.extract(url)
@@ -277,11 +281,12 @@ class duckListener():
 
     def get_authsAndTags(self,url,leaf):
         url_link=url
+        a=resolve(url)
         url=hashlib.md5(url).hexdigest()
         response=urllib2.urlopen("http://feeds.delicious.com/v2/json/url/"+url)        
         delRes=json.loads(response.read())
         s=twittApi
-        twitRes=s.search(url)
+        twitRes=s.search(url_link)
         authors=[]
         tags=[]
         for a in delRes:
@@ -299,38 +304,33 @@ class duckListener():
             if author not in authors:
                 authors.insert(0,author)
             #s=el string del tweet
-            hts=self.extract_hash_tags(s)
+            hts=self.extract_hash_tags(r.text)
             for ht in hts:
                 if leaf==0:
-                    self.relatedTo(author,url_link,hts,r.id,"twitter")
+                    self.relatedTo(author,url_link,ht,"twitter",r.id)
                 if ht not in tags:
                     tags.insert(0,ht)
         return authors,tags
 
-    def relatedTo(self,user,url,tag,social_network):
-        print "primera de related to"
-        print tag
-        print social_network
-        print user
+    def relatedTo(self,user,url,tag,social_network,max_id=0):
         firsturl=url
         resources = db.Resources
         tagl=[]
         tagl.append(tag)
         relatedToTweet=[]
         relatedToDel=[]
-        print url
         if social_network=="twitter":
             print "Entrado en reltated totwitter para: "+url
-            response=twittApi.user_timeline(user,max_id=mid)
+            response=twittApi.user_timeline(user=user,max_id=max_id-1,count=50)
             for tweet in response:
                 ht=self.extract_hash_tags(tweet.text)
                 intersect=list(set(tagl) & set(ht))
-                if intersect>0:
+                if len(intersect)>0:
                     #relatedToTweet.append(tweet)
                     ##mirar si en el texto hay enlaces
                     ##para cada enlace dle texto
-                    print "mirando aver si el twet tiene texto: "+tweet.text
-                    links= self.extract_urls(tweet.text)
+                    links= self.extract_urls(str(tweet.text))
+                    print links
                     for link in links:
                         Resource=self.createResource(link,firsturl,1)
                         try:
@@ -364,8 +364,8 @@ class duckListener():
         return set(part[1:] for part in s.split() if part.startswith('#'))            
 
     def extract_urls(self,s):
-        return re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', s)
-
+        a= re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', s)
+        return a
     def get_tweets_for_url(self,url):
        response=urllib2.urlopen("http://urls.api.twitter.com/1/urls/count.json?url="+url)
        res=response.read()
