@@ -89,17 +89,18 @@ class duckListener():
         #Google 
         self.getGoogleSearch("query",links)
         """
+        self.getInterestingUserTwitter("3dprinting")
         #DuckDuckgo
         #self.getDuckGo("query",links)
         #api.import.io       
-        self.getApiIO("query",links)
+        #self.getApiIO("query",links)
         ###Get slideshows && search slideshows
         #self.getSlideShow(query="3DPrinting",links=links)
         #self.getSlideShow(tag="3DPrinting",links=links)
         ###Take 10 links randomly
-        shuffle(links)
-        links=['http://t.co/oJj4lEcWJI']
-        self.pages=links[0:20]
+        #shuffle(links)
+        #links=['http://t.co/oJj4lEcWJI']
+        #self.pages=links[0:20]
         """ TABLA DE ENLACEs
         print "Tabla_______________________________________________"
         print "Url--------------Tweets que contienen la url-------------Delicious saved"
@@ -132,6 +133,23 @@ class duckListener():
           link=li['url']
           if link not in links:
             links.insert(0,link) 
+
+
+    def getInterestingUserTwitter(self,query):
+        users = db.Users
+        url="https://api.import.io/store/data/2297660e-b775-433d-a408-8fb6d7a808e7/_query?input/webpage/url=http%3A%2F%2Fwefollow.com%2Finterest%2F"+query+"%2F62-100&_user=7d0326db-696a-436d-8aba-f6c2e1c9e921&_apikey=89Gl8Ce2tiqX949GcKQTE9hCg6NW%2FkN36WpGKEA4knjhoTTRT72%2BitSWPicKFsZ4RmTwvyMbC%2BOrPtxAvy1EGw%3D%3D"
+        response=urllib2.urlopen(url)
+        res=response.read()
+        res=json.loads(res)
+        int_Users=res['results']
+        for user in int_Users:
+            username=str(user['username'])
+            score=int(user['score'])
+            social_network="Twitter"
+            description=str(user['description'])
+            doc={"username":username,"subject":query,"score":score,"social_network":social_network,"description":description,"last_updated":datetime.datetime.now()}
+            users.insert(doc)
+            print "insertado usuario"+username
 
     def getSlideShow(self,query="",tag="",links=[]):
         ts = int(time.time())
