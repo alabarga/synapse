@@ -144,12 +144,34 @@ class duckListener():
         int_Users=res['results']
         for user in int_Users:
             username=str(user['username'])
+            followers_count=self.getTwitterFollowersCount(username)
             score=int(user['score'])
             social_network="Twitter"
             description=str(user['description'])
-            doc={"username":username,"subject":query,"score":score,"social_network":social_network,"description":description,"last_updated":datetime.datetime.now()}
+            doc={"followers_count":followers_count,"username":username,"subject":query,"score":score,"social_network":social_network,"description":description,"last_updated":datetime.datetime.now()}
             users.insert(doc)
             print "insertado usuario"+username
+            followers=self.getTwitterFollowers(username)
+            for fl in followers:
+                print "mirando usuario:"+fl.screen_name
+                us=self.getUserScoresTwitter(fl.screen_name)
+                if 'error' in us:
+                    continue
+                for subject in us['results']:
+                    print subject
+                    print "sus subject"
+                    if subject['subject']==query:
+                        print "llegado"
+                        fc=fl.followers_count
+                        name=fl.screen_name
+                        score="None"
+                        if 'score' in subject:
+                            score=subject['score']
+                        description=fl.description
+                        doc={"related_to":username,"followers_count":fc,"username":name,"subject":query,"score":score,"social_network":social_network,"description":description,"last_updated":datetime.datetime.now()}
+                        users.insert(doc)
+                        print "insertado usuario"+fl.screen_name+" relacionado con:"+username
+                        break
 
     def getSlideShow(self,query="",tag="",links=[]):
         ts = int(time.time())
@@ -384,11 +406,27 @@ class duckListener():
     def extract_urls(self,s):
         a= re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', s)
         return a
+
     def get_tweets_for_url(self,url):
        response=urllib2.urlopen("http://urls.api.twitter.com/1/urls/count.json?url="+url)
        res=response.read()
        res=json.loads(res)
        return res['count']
+
+    def getTwitterFollowersCount(self,user):
+        res=twittApi.get_user(user)
+        return res.followers_count
+
+    def getTwitterFollowers(self,user):
+        res=twittApi.get_user(user)
+        return res.followers()
+
+    def getUserScoresTwitter(self,user):
+        url="https://api.import.io/store/data/502b657b-ed1a-4b39-92dc-8700af26db12/_query?input/webpage/url=http%3A%2F%2Fwefollow.com%2F"+user+"&_user=e22d120a-272c-49ee-9a75-af234935b1da&_apikey=0RgCSN5nmrvjTMSPSgQPXskTNf7lkY9Q3N%2BIJo402x2Bpc5ht0HJIkglHbrRrfVsQ4j%2BpLx0jqFzsU1tSUSWmA%3D%3D"
+        res=urllib2.urlopen(url)
+        resp=res.read()
+        res=json.loads(resp)
+        return res
 
     def get_saves_for_url(self,url):
        url=hashlib.md5(url).hexdigest()
