@@ -29,7 +29,10 @@ import feedfinder
 import feedparser
 import re
 from urlunshort import resolve
+import readability
 
+###Readability parser
+red_par=readability.ParserClient('03b5d5676456982e868cf57e5b6757f198ef479d')
 ##Mongo client
 client = MongoClient('localhost', 27017)
 db = client.Synapse
@@ -67,7 +70,16 @@ class duckListener():
         self.pages=[]
     #Inicia la actividad de busqueda
     def start(self):
-        self.running=1
+        url="http://www.3djuegos.com/noticia/147680/0/sunset-overdrive/xbox-one-resolucion/"
+        print "Prueba de readability: "
+        print self.get_article_data(url,'domain')
+        print self.get_article_data(url,'author')
+        print self.get_article_data(url,'url')
+        print self.get_article_data(url,'short_url')
+        print self.get_article_data(url,'title')
+        print self.get_article_data(url,'excerpt')
+        print self.get_article_data(url,'date_published')
+        self.running=0
         while self.running==1:
             self.getPages()
             self.updatePages(self.pages)
@@ -439,3 +451,14 @@ class duckListener():
         response=urllib2.urlopen('http://free.sharedcount.com/?url='+url+'&apikey=cabec5c5d636b063cbbcf8cbe966fd3c4c7d9152')
         res=json.loads(response.read())
         return res
+
+    def get_article_status(self,url):
+        return red_par.get_article_status(url)
+
+    def get_article_content(self,url):
+        return red_par.get_article_content(url)
+
+    def get_article_data(self,url,key):
+        data=self.get_article_content(url).content
+        if key in data.viewkeys() and data[key]!=None:
+            return data[key]
